@@ -7,7 +7,7 @@ with open("README.md") as readme:
 
 setuptools.setup(
     name="certificate_watcher",
-    version="0.0.1",
+    version="0.0.2",
     description="Watch expiration of certificates of a bunch of websites.",
     long_description=long_description,
     long_description_content_type="text/markdown",
