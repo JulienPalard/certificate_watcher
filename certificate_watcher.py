@@ -67,25 +67,16 @@ def main():
         try:
             cert = get_server_certificate(host, port=port)
         except socket.timeout:
-            print("{host}: connect timeout".format(host=host))
+            print(f"{host}: connect timeout")
         except ConnectionResetError:
-            print("{host}: Connection reset".format(host=host))
-        except (
-            ssl.CertificateError,
-            socket.gaierror,
-            ssl.SSLError,
-            ConnectionRefusedError,
-        ) as err:
-            print("{host}: {err}".format(host=host, err=str(err)))
+            print(f"{host}: Connection reset")
+        except Exception as err:
+            print(f"{host}: {err!s}")
         else:
             not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
             expire_in = not_after - now
             if expire_in < limit or args.verbose:
-                print(
-                    "{host} expire in {expire_in:.0f} days".format(
-                        host=host, expire_in=expire_in.total_seconds() // 86400
-                    )
-                )
+                print(f"{host} expire in {expire_in.total_seconds() // 86400:.0f} days")
 
 
 if __name__ == "__main__":
