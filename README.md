@@ -24,12 +24,19 @@ git.example.com
 duckduckgo.com
 mamot.fr
 protonmail.com
+
+# IMAP
+imap.protonmail.com:993
 ```
 
 Usefull as a daily cron, typically like this:
 
-   certificate_watcher -f /home/you/.certificate_watcher
+```
+certificate_watcher -f /home/you/.certificate_watcher
+```
 
 Or if you use IRC:
 
-   certificate_watcher -f /home/you/.certificate_watcher | irk '#your_project_channel' -
+```
+certificate_watcher -f /home/you/.certificate_watcher | irk '#your_project_channel' -
+```
