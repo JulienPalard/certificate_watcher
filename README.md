@@ -1,4 +1,4 @@
-List sexpiration time of soon-to-be expired ssl certificates of all
+Lists expiration time of soon-to-be expired ssl certificates of all
 given domains like:
 
    ./certificate_watcher.py mdk.fr python.org duckduckgo.com
