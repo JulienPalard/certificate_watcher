@@ -12,13 +12,14 @@ import argparse
 from datetime import datetime, timedelta
 import socket
 import ssl
-import sys
 
 
 __version__ = "0.0.2"
 
+TLS_PORT = 443
 
-def get_server_certificate(addr, port=443, timeout=10):
+
+def get_server_certificate(addr, port=TLS_PORT, timeout=10):
     """Retrieve the certificate from the server at the specified address"
     """
     context = ssl.create_default_context()
@@ -57,9 +58,14 @@ def main():
         )
     now = datetime.utcnow()
     limit = timedelta(days=14)
-    for host in hosts:
+    for line in hosts:
+        port = TLS_PORT
+        if ":" in line:
+            host, port = line.split(":")
+        else:
+            host = line
         try:
-            cert = get_server_certificate(host)
+            cert = get_server_certificate(host, port=port)
         except socket.timeout:
             print("{host}: connect timeout".format(host=host))
         except ConnectionResetError:
