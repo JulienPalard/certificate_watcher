@@ -14,7 +14,7 @@ import socket
 import ssl
 
 
-__version__ = "0.0.3"
+__version__ = "0.0.4"
 
 TLS_PORT = 443
 
