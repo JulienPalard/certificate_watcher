@@ -6,7 +6,21 @@ given domains like:
 
 The list of domains can be given as a file, using the `-f` or
 `--from-file` argument. In this file, list each domains, one per
-line. Black lines and lines starting with '#' are ignored.
+line. Blank lines and lines starting with '#' are ignored.
+
+An optional port can be given using the usual syntax `host:port`, for
+example `imap.protonmail.com:443`.
+
+An optional IP address can be given using an `@`, this is usefull to
+poke multiple backends like:
+
+```
+./certificate_watcher.py example.com@10.1.0.1 example.com@10.1.0.2
+```
+
+The `@host` and `:port` have no specific order, both
+`example.com:443@127.0.0.1` and `example.com@127.0.0.1:443` mean the
+same test.
 
 Exemple domain file:
 

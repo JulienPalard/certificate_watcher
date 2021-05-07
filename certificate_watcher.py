@@ -8,23 +8,23 @@ all given domains like:
 
 """
 
+import re
 import argparse
 from datetime import datetime, timedelta
 import socket
 import ssl
 
 
-__version__ = "0.0.4"
-
-TLS_PORT = 443
+__version__ = "0.0.5"
 
 
-def get_server_certificate(addr, port=TLS_PORT, timeout=10):
-    """Retrieve the certificate from the server at the specified address"
-    """
+def get_server_certificate(service, timeout=10):
+    """Retrieve the certificate from the server at the specified address" """
     context = ssl.create_default_context()
-    with socket.create_connection((addr, port), timeout) as sock:
-        with context.wrap_socket(sock, server_hostname=addr) as sslsock:
+    with socket.create_connection(
+        (service.ip or service.hostname, service.port), timeout
+    ) as sock:
+        with context.wrap_socket(sock, server_hostname=service.hostname) as sslsock:
             return sslsock.getpeercert()
 
 
@@ -47,6 +47,28 @@ def parse_args():
     return parser.parse_args()
 
 
+class Service:
+    SPEC = "(?P<ip>@[^@:]+)|(?P<port>:[^@:]+)|(?P<hostname>[^@:]+)"
+
+    def __init__(self, description):
+        self.description = description
+        self.ip = None
+        self.port = 443
+        self.hostname = None
+        for token in re.finditer(Service.SPEC, description):
+            kind = token.lastgroup
+            value = token.group()
+            if kind == "ip":
+                self.ip = value[1:]
+            if kind == "port":
+                self.port = int(value[1:])
+            if kind == "hostname":
+                self.hostname = value
+
+    def __repr__(self):
+        return self.description
+
+
 def main():
     args = parse_args()
     hosts = args.hosts
@@ -56,27 +78,26 @@ def main():
             for host in args.from_file.read().split("\n")
             if host and not host.startswith("#")
         )
+        args.from_file.close()
     now = datetime.utcnow()
     limit = timedelta(days=14)
     for line in hosts:
-        port = TLS_PORT
-        if ":" in line:
-            host, port = line.split(":")
-        else:
-            host = line
+        service = Service(line)
         try:
-            cert = get_server_certificate(host, port=port)
+            cert = get_server_certificate(service)
         except socket.timeout:
-            print(f"{host}: connect timeout")
+            print(f"{service}: connect timeout")
         except ConnectionResetError:
-            print(f"{host}: Connection reset")
+            print(f"{service}: Connection reset")
         except Exception as err:
-            print(f"{host}: {err!s}")
+            print(f"{service}: {err!s}")
         else:
             not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
             expire_in = not_after - now
             if expire_in < limit or args.verbose:
-                print(f"{host} expire in {expire_in.total_seconds() // 86400:.0f} days")
+                print(
+                    f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
+                )
 
 
 if __name__ == "__main__":
