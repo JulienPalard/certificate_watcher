@@ -75,12 +75,12 @@ class CertificateValidationError(Exception):
 def validate_certificate(service: Service, limit: timedelta):
     try:
         cert = get_server_certificate(service)
-    except socket.timeout:
-        raise CertificateValidationError(f"{service}: connect timeout")
-    except ConnectionResetError:
-        raise CertificateValidationError(f"{service}: Connection reset")
+    except socket.timeout as err:
+        raise CertificateValidationError(f"{service}: connect timeout") from err
+    except ConnectionResetError as err:
+        raise CertificateValidationError(f"{service}: Connection reset") from err
     except Exception as err:
-        raise CertificateValidationError(f"{service}: {err!s}")
+        raise CertificateValidationError(f"{service}: {err!s}") from err
     else:
         not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
         expire_in = not_after - datetime.utcnow()
