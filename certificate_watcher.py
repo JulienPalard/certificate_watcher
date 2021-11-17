@@ -8,9 +8,9 @@ all given domains like:
 
 """
 
-import re
 import argparse
 from datetime import datetime, timedelta
+import re
 import socket
 import ssl
 
@@ -33,7 +33,6 @@ def parse_args():
         prog="Certificate Watcher",
         description="Watch expiration of certificates of a bunch of websites.",
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument(
         "-f",
         "--from-file",
@@ -69,6 +68,28 @@ class Service:
         return self.description
 
 
+class CertificateValidationError(Exception):
+    pass
+
+
+def validate_certificate(service: Service, limit: timedelta):
+    try:
+        cert = get_server_certificate(service)
+    except socket.timeout as err:
+        raise CertificateValidationError(f"{service}: connect timeout") from err
+    except ConnectionResetError as err:
+        raise CertificateValidationError(f"{service}: Connection reset") from err
+    except Exception as err:
+        raise CertificateValidationError(f"{service}: {err!s}") from err
+    else:
+        not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
+        expire_in = not_after - datetime.utcnow()
+        if expire_in < limit:
+            raise CertificateValidationError(
+                f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
+            )
+
+
 def main():
     args = parse_args()
     hosts = args.hosts
@@ -79,25 +100,12 @@ def main():
             if host and not host.startswith("#")
         )
         args.from_file.close()
-    now = datetime.utcnow()
-    limit = timedelta(days=14)
-    for line in hosts:
-        service = Service(line)
+
+    for service in map(Service, hosts):
         try:
-            cert = get_server_certificate(service)
-        except socket.timeout:
-            print(f"{service}: connect timeout")
-        except ConnectionResetError:
-            print(f"{service}: Connection reset")
-        except Exception as err:
-            print(f"{service}: {err!s}")
-        else:
-            not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
-            expire_in = not_after - now
-            if expire_in < limit or args.verbose:
-                print(
-                    f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
-                )
+            validate_certificate(service, limit=timedelta(days=14))
+        except CertificateValidationError as error:
+            print(error)
 
 
 if __name__ == "__main__":
