@@ -19,9 +19,6 @@ import ssl
 __version__ = "0.0.5"
 
 
-Context = collections.namedtuple('Context', ['now', 'limit', 'verbose'])
-
-
 def get_server_certificate(service, timeout=10):
     """Retrieve the certificate from the server at the specified address" """
     context = ssl.create_default_context()
