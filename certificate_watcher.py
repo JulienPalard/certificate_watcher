@@ -8,14 +8,18 @@ all given domains like:
 
 """
 
-import re
 import argparse
+import collections
 from datetime import datetime, timedelta
+import re
 import socket
 import ssl
 
 
 __version__ = "0.0.5"
+
+
+Context = collections.namedtuple('Context', ['now', 'limit', 'verbose'])
 
 
 def get_server_certificate(service, timeout=10):
@@ -69,6 +73,24 @@ class Service:
         return self.description
 
 
+def validate_certificate(context: Context, service: Service):
+    try:
+        cert = get_server_certificate(service)
+    except socket.timeout:
+        return f"{service}: connect timeout"
+    except ConnectionResetError:
+        return f"{service}: Connection reset"
+    except Exception as err:
+        return f"{service}: {err!s}"
+    else:
+        not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
+        expire_in = not_after - context.now
+        if expire_in < context.limit or context.verbose:
+            return (
+                f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
+            )
+
+
 def main():
     args = parse_args()
     hosts = args.hosts
@@ -79,25 +101,16 @@ def main():
             if host and not host.startswith("#")
         )
         args.from_file.close()
-    now = datetime.utcnow()
-    limit = timedelta(days=14)
-    for line in hosts:
-        service = Service(line)
-        try:
-            cert = get_server_certificate(service)
-        except socket.timeout:
-            print(f"{service}: connect timeout")
-        except ConnectionResetError:
-            print(f"{service}: Connection reset")
-        except Exception as err:
-            print(f"{service}: {err!s}")
-        else:
-            not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
-            expire_in = not_after - now
-            if expire_in < limit or args.verbose:
-                print(
-                    f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
-                )
+
+    context = Context(
+        now=datetime.utcnow(),
+        limit=timedelta(days=14),
+        verbose=args.verbose,
+    )
+
+    for service in map(Service, hosts):
+        if error := validate_certificate(context, service):
+            print(error)
 
 
 if __name__ == "__main__":
