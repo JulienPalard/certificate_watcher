@@ -73,20 +73,24 @@ class Service:
         return self.description
 
 
-def validate_certificate(context: Context, service: Service):
+class CertificateValidationError(Exception):
+    pass
+
+
+def validate_certificate(service: Service, limit: timedelta):
     try:
         cert = get_server_certificate(service)
     except socket.timeout:
-        return f"{service}: connect timeout"
+        raise CertificateValidationError(f"{service}: connect timeout")
     except ConnectionResetError:
-        return f"{service}: Connection reset"
+        raise CertificateValidationError(f"{service}: Connection reset")
     except Exception as err:
-        return f"{service}: {err!s}"
+        raise CertificateValidationError(f"{service}: {err!s}")
     else:
         not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
-        expire_in = not_after - context.now
-        if expire_in < context.limit or context.verbose:
-            return (
+        expire_in = not_after - datetime.utcnow()
+        if expire_in < limit:
+            raise CertificateValidationError(
                 f"{service} expire in {expire_in.total_seconds() // 86400:.0f} days"
             )
 
@@ -102,14 +106,10 @@ def main():
         )
         args.from_file.close()
 
-    context = Context(
-        now=datetime.utcnow(),
-        limit=timedelta(days=14),
-        verbose=args.verbose,
-    )
-
     for service in map(Service, hosts):
-        if error := validate_certificate(context, service):
+        try:
+            validate_certificate(service, limit=timedelta(days=14))
+        except CertificateValidationError as error:
             print(error)
 
 
