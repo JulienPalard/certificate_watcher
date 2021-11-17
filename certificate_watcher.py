@@ -9,7 +9,6 @@ all given domains like:
 """
 
 import argparse
-import collections
 from datetime import datetime, timedelta
 import re
 import socket
@@ -34,7 +33,6 @@ def parse_args():
         prog="Certificate Watcher",
         description="Watch expiration of certificates of a bunch of websites.",
     )
-    parser.add_argument("-v", "--verbose", action="store_true")
     parser.add_argument(
         "-f",
         "--from-file",
