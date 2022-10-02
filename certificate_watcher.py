@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 
 from ocspchecker import ocspchecker
 
-__version__ = "0.0.6"
+__version__ = "0.1"
 
 
 def get_server_certificate(service, timeout=10):
