@@ -27,9 +27,7 @@ def get_server_certificate(service, timeout=10):
     context = ssl.create_default_context()
     context.options &= ssl.CERT_REQUIRED
     context.check_hostname = True
-    with socket.create_connection(
-        (service.ip or service.hostname, service.port), timeout
-    ) as sock:
+    with socket.create_connection(service.address, timeout) as sock:
         with context.wrap_socket(sock, server_hostname=service.hostname) as sslsock:
             return sslsock.getpeercert()
 
@@ -112,9 +110,19 @@ class Service:
                 self.port = int(value[1:])
             if kind == "hostname":
                 self.hostname = value
+        if self.hostname is None:
+            raise ValueError("A service cannot have no hostname.")
 
     def __repr__(self):
         return self.description
+
+    @property
+    def address(self):
+        """Return a 2-tuple (host, port).
+
+        If ip is given, (ip, port) is returned instead.
+        """
+        return (self.ip or self.hostname, self.port)
 
 
 class CertificateValidationError(Exception):
@@ -143,7 +151,8 @@ def validate_certificate(
         certificate_age = datetime.utcnow() - not_before
         if (
             bool(check_ocsp)
-            and ocspchecker.get_ocsp_status(service)[2] == "OCSP Status: REVOKED"
+            and ocspchecker.get_ocsp_status(service.hostname, service.port)[2]
+            == "OCSP Status: REVOKED"
         ):
             raise CertificateValidationError("OCSP Satus: REVOKED")
         if expire_in < limitlow:
