@@ -63,7 +63,7 @@ def parse_args():
         "-o",
         action="count",
         default=0,
-        help="OSCP CRL check, time consuming, advance checks not supported currently",
+        help="OCSP CRL check, time consuming, advance checks not supported currently",
     )
     parser.add_argument(
         "--low",
