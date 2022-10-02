@@ -9,10 +9,13 @@ all given domains like:
 """
 
 import argparse
+import csv
 from datetime import datetime, timedelta
 import re
 import socket
 import ssl
+import sys
+
 from ocspchecker import ocspchecker
 
 
@@ -123,83 +126,55 @@ class CertificateValidationError(Exception):
     pass
 
 
-def message(erreur, service, text, csv, attention):
-    if bool(erreur):
-        if csv > 0:
-            text = f"{service};{erreur}"
-        else:
-            text = f"{service}: {erreur}"
-        for i in range(attention):
-            text = text + "\a"
-        raise CertificateValidationError(text)
-    else:
-        if csv > 0:
-            text = f"{service};{text}"
-        else:
-            text = f"{service}: {text}"
-        print(text)
-
-
 def validate_certificate(
     service: Service,
     limitlow: timedelta,
     limithigh: timedelta = timedelta(days=365),
-    csv=0,
-    verbose=0,
-    attention=0,
-    ocsp=0,
+    check_ocsp: bool = False,
     delay=10,
 ):
     try:
         cert = get_server_certificate(service, timeout=delay)
     except socket.timeout as err:
-        message(err, service, "connect timeout", csv, attention)
+        raise CertificateValidationError("connect timeout") from err
     except ConnectionResetError as err:
-        message(err, service, "connection reset", csv, attention)
+        raise CertificateValidationError("Connection reset") from err
     except Exception as err:
-        message(err, service, f"{err!s}", csv, attention)
+        raise CertificateValidationError(str(err)) from err
     else:
         not_after = datetime.strptime(cert["notAfter"], "%b %d %H:%M:%S %Y GMT")
         not_before = datetime.strptime(cert["notBefore"], "%b %d %H:%M:%S %Y GMT")
         expire_in = not_after - datetime.utcnow()
         certificate_age = datetime.utcnow() - not_before
-        revocked = False
-        if bool(ocsp):
-            revocked = (
-                ocspchecker.get_ocsp_status(f"{service}")[2] == "OCSP Status: REVOKED"
-            )
-
-        if bool(revocked):
-            message("OCSP Status: REVOKED", service, "", csv, attention)
-        elif expire_in < limitlow:
-            message(
-                f"expires in {expire_in.total_seconds() // 86400:.0f} days",
-                service,
-                "",
-                csv,
-                attention,
-            )
-        elif certificate_age > limithigh:
+        if (
+            bool(check_ocsp)
+            and ocspchecker.get_ocsp_status(service)[2] == "OCSP Status: REVOKED"
+        ):
+            raise CertificateValidationError("OCSP Satus: REVOKED")
+        if expire_in < limitlow:
             raise CertificateValidationError(
-                f"{service} certificate is too old (has been created {certificate_age.total_seconds() // 86400:.0f} days ago)"
+                f"Certificate expires in {expire_in.total_seconds() // 86400:.0f} days"
             )
-        elif verbose > 0:
-            message(False, service, "OK", csv, attention)
+        if certificate_age > limithigh:
+            raise CertificateValidationError(
+                f"Certificate is too old (has been created {certificate_age.total_seconds() // 86400:.0f} days ago)"
+            )
 
 
 def main():
     args = parse_args()
     hosts = args.hosts
-    csv = args.csv
     verbose = args.verbose
     attention = args.attention
     ocsp = args.ocsp
     low = int(args.low)
     high = int(args.high)
     delay = float(args.delay)
-    if csv > 0:
-        text = "Service;Status"
-        print(text)
+    if args.csv > 0:
+        writer = csv.writer(sys.stdout, delimiter=";")
+        writer.writerow(["Service", "Status"])
+    else:
+        writer = csv.writer(sys.stdout, delimiter=":")
     if args.from_file:
         hosts.extend(
             host.strip()
@@ -214,14 +189,16 @@ def main():
                 service,
                 limitlow=timedelta(days=low),
                 limithigh=timedelta(days=high),
-                csv=csv,
-                verbose=verbose,
-                attention=attention,
-                ocsp=ocsp,
+                check_ocsp=ocsp,
                 delay=delay,
             )
         except CertificateValidationError as error:
-            print(error)
+            writer.writerow([str(service), str(error)])
+            if not args.csv and args.attention:
+                print("\a")
+        else:
+            if verbose:
+                writer.writerow([str(service), "OK"])
 
 
 if __name__ == "__main__":
