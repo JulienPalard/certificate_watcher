@@ -131,7 +131,7 @@ class CertificateValidationError(Exception):
 
 def validate_certificate(
     service: Service,
-    limitlow: timedelta,
+    limitlow: timedelta = timedelta(days=15),
     limithigh: timedelta = timedelta(days=365),
     check_ocsp: bool = False,
     timeout=10,
