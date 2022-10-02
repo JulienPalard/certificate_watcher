@@ -10,14 +10,13 @@ all given domains like:
 
 import argparse
 import csv
-from datetime import datetime, timedelta
 import re
 import socket
 import ssl
 import sys
+from datetime import datetime, timedelta
 
 from ocspchecker import ocspchecker
-
 
 __version__ = "0.0.6"
 
@@ -33,6 +32,7 @@ def get_server_certificate(service, timeout=10):
 
 
 def parse_args():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         prog="Certificate Watcher",
         description="Watch expiration of certificates of a bunch of websites.",
@@ -51,7 +51,8 @@ def parse_args():
         "--attention",
         "-a",
         action="store_true",
-        help=r"Add '\a' in case of KO in order to generate beeps (depending of the terminal)",
+        help=r"Add '\a' in case of KO in order to generate beeps "
+        "(depending of the terminal)",
     )
     parser.add_argument(
         "--check-ocsp",
@@ -94,18 +95,39 @@ def parse_args():
 
 
 class Service:
+    """Represent a host or an host:port pair (port defaults to 443).
+
+    Optionally the host:port pair can be augmented by an IP to bypass
+    DNS resolution.
+
+    The optional IP address is given prefixed by an `@`, this is usefull to
+    poke multiple backends like:
+
+        s1 = Service("example.com@10.1.0.1")
+        s2 = Service("example.com@10.1.0.2")
+
+    A domain name, to be resolved, can be used in this field too, like:
+
+        s1 = Service("example.com@backend1.example.com")
+        s2 = Service("example.com@backend2.example.com")
+
+    The `@host` and `:port` have no specific order, both
+    "example.com:443@127.0.0.1" and "example.com@127.0.0.1:443" are
+    parsed equally.
+    """
+
     SPEC = "(?P<ip>@[^@:]+)|(?P<port>:[^@:]+)|(?P<hostname>[^@:]+)"
 
     def __init__(self, description):
         self.description = description
-        self.ip = None
+        self.ip_addr = None
         self.port = 443
         self.hostname = None
         for token in re.finditer(Service.SPEC, description):
             kind = token.lastgroup
             value = token.group()
             if kind == "ip":
-                self.ip = value[1:]
+                self.ip_addr = value[1:]
             if kind == "port":
                 self.port = int(value[1:])
             if kind == "hostname":
@@ -122,11 +144,11 @@ class Service:
 
         If ip is given, (ip, port) is returned instead.
         """
-        return (self.ip or self.hostname, self.port)
+        return (self.ip_addr or self.hostname, self.port)
 
 
 class CertificateValidationError(Exception):
-    pass
+    """Raised by validate_certificate on any certificate error."""
 
 
 def validate_certificate(
@@ -136,6 +158,13 @@ def validate_certificate(
     check_ocsp: bool = False,
     timeout=10,
 ):
+    """Check for a certificate validity on a remote host.
+
+    Raises CertificateValidationError with a specific message if an
+    issue is found.
+
+    >>> validate_certificate(Service("mdk.fr"))
+    """
     try:
         cert = get_server_certificate(service, timeout=timeout)
     except socket.timeout as err:
@@ -167,6 +196,7 @@ def validate_certificate(
 
 
 def main():
+    """Command-line tool (certificate_watcher) entry point."""
     args = parse_args()
     if args.csv > 0:
         writer = csv.writer(sys.stdout, delimiter=",")
