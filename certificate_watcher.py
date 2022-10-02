@@ -58,8 +58,8 @@ def parse_args():
         "--attention",
         "-a",
         action="count",
-        default=0,
-        help="add '\a' in case of KO in order to generate beeps (depending of the terminal)",
+        default=0
+        help=r"Add '\a' in case of KO in order to generate beeps (depending of the terminal)",
     )
     parser.add_argument(
         "--ocsp",
