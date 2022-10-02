@@ -2,7 +2,7 @@ Lists expiration time of soon-to-be expired ssl certificates of all
 given domains like:
 
    ./certificate_watcher.py mdk.fr python.org duckduckgo.com
-   mdk.fr expire in 2 days
+   mdk.fr:Certificate expires in 2 days
 
 The list of domains can be given as a file, using the `-f` or
 `--from-file` argument. In this file, list each domains, one per
