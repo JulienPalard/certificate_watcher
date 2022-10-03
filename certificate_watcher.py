@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 
 from ocspchecker import ocspchecker
 
-__version__ = "0.1"
+__version__ = "0.1.1"
 
 
 def get_server_certificate(service, timeout=10):
@@ -195,14 +195,20 @@ def validate_certificate(
             )
 
 
+def printrow(row):
+    """The non-csv printer used by main."""
+    print(*row, sep=": ")
+
+
 def main():
     """Command-line tool (certificate_watcher) entry point."""
     args = parse_args()
-    if args.csv > 0:
+    if args.csv:
         writer = csv.writer(sys.stdout, delimiter=",")
         writer.writerow(["Service", "Status"])
+        writerow = writer.writerow
     else:
-        writer = csv.writer(sys.stdout, delimiter=":")
+        writerow = printrow
     if args.from_file:
         args.hosts.extend(
             host.strip()
@@ -221,12 +227,12 @@ def main():
                 timeout=args.timeout,
             )
         except CertificateValidationError as error:
-            writer.writerow([str(service), str(error)])
+            writerow([str(service), str(error)])
             if not args.csv and args.attention:
                 print("\a")
         else:
             if args.verbose:
-                writer.writerow([str(service), "OK"])
+                writerow([str(service), "OK"])
 
 
 if __name__ == "__main__":

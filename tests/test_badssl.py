@@ -20,5 +20,6 @@ def test_all_badssl_are_failing(host):
     ):
         pytest.skip("Known false negative, to fix later maybe...")
 
-    with pytest.raises(CertificateValidationError):
+    with pytest.raises(CertificateValidationError) as exc_info:
         validate_certificate(Service(host), check_ocsp=True)
+    assert not exc_info.value.args[0].startswith('"')
