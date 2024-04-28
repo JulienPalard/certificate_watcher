@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-"""Prints (on stderr) the list and expiration time ssl certificats of
+"""Prints (on stderr) the list and expiration time ssl certificates of
 all given domains like:
 
-   ./warn_expire.py mdk.fr python.org duckduckgo.com
+   certificate_watcher mdk.fr python.org duckduckgo.com
    mdk.fr expire in 2 days
 
 """
@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 
 from ocspchecker import ocspchecker
 
-__version__ = "0.1.1"
+__version__ = "0.2.0"
 
 
 def get_server_certificate(service, timeout=10):
@@ -111,29 +111,37 @@ class Service:
         s1 = Service("example.com@backend1.example.com")
         s2 = Service("example.com@backend2.example.com")
 
-    The `@host` and `:port` have no specific order, both
-    "example.com:443@127.0.0.1" and "example.com@127.0.0.1:443" are
-    parsed equally.
+    Beware, the port is only parsed on the host part, so:
+
+        example.com:443@127.0.0.1
+
+    is valid while:
+
+        example.com@127.0.0.1:443
+
+    is not.
+
+    This is to disambiguate IPv6, this is not ambiguous:
+
+        example.com:443@::1
+
+    while this is:
+
+        example.com@::1:443
     """
 
-    SPEC = "(?P<ip>@[^@:]+)|(?P<port>:[^@:]+)|(?P<hostname>[^@:]+)"
+    SPEC = "(?P<hostname>[^@:]+)(?P<port>:[0-9]+)?(?P<ip>@[0-9a-fA-F.:]+)?"
 
     def __init__(self, description):
         self.description = description
         self.ip_addr = None
         self.port = 443
-        self.hostname = None
-        for token in re.finditer(Service.SPEC, description):
-            kind = token.lastgroup
-            value = token.group()
-            if kind == "ip":
-                self.ip_addr = value[1:]
-            if kind == "port":
-                self.port = int(value[1:])
-            if kind == "hostname":
-                self.hostname = value
-        if self.hostname is None:
-            raise ValueError("A service cannot have no hostname.")
+        spec = re.match(Service.SPEC, description)
+        self.hostname = spec["hostname"]
+        if spec["port"]:
+            self.port = int(spec["port"][1:])
+        if spec["ip"]:
+            self.ip_addr = spec["ip"][1:]
 
     def __repr__(self):
         return self.description

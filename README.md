@@ -24,10 +24,8 @@ A domain to be resolved can be used in this field to, like:
 ./certificate_watcher.py example.com@backend1.example.com example.com@backend2.example.com
 ```
 
-
-The `@host` and `:port` have no specific order, both
-`example.com:443@127.0.0.1` and `example.com@127.0.0.1:443` mean the
-same test.
+The `:port` must appear before `@host`, like:
+`example.com:443@fe80::5c5b:9f32:13b1:29c3`.
 
 Exemple domain file:
 
